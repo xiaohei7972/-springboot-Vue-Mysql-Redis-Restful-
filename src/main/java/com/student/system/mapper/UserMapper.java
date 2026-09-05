@@ -20,4 +20,10 @@ public interface UserMapper extends BaseMapper<UserEntity> {
             FROM sys_user WHERE id = #{id}
             """)
     Map<String, Object> findProfile(Long id);
+
+    @Select("SELECT COUNT(*) FROM teacher WHERE user_id = #{userId}")
+    long countTeacherReference(Long userId);
+
+    @Select("SELECT COUNT(*) FROM student WHERE user_id = #{userId}")
+    long countStudentReference(Long userId);
 }

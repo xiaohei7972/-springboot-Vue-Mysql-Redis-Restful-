@@ -86,15 +86,19 @@ public interface StudentSystemMapper {
     int deleteStudent(@Param("id") long id);
 
     @Select("""
-            SELECT t.id, t.teacher_no AS teacherNo, t.name, t.title, t.phone,
-                   t.department_id AS departmentId, d.name AS departmentName
-            FROM teacher t LEFT JOIN sys_department d ON d.id=t.department_id ORDER BY t.id DESC
+            SELECT t.id, t.user_id AS userId, t.teacher_no AS teacherNo, t.name, t.title, t.phone,
+                   t.department_id AS departmentId, d.name AS departmentName,
+                   u.username, u.status AS userStatus
+            FROM teacher t
+            LEFT JOIN sys_department d ON d.id=t.department_id
+            LEFT JOIN sys_user u ON u.id=t.user_id
+            ORDER BY t.id DESC
             """)
     List<Map<String, Object>> listTeachers();
 
     @Insert("""
-            INSERT INTO teacher(teacher_no, name, title, department_id, phone)
-            VALUES (#{teacherNo}, #{name}, #{title}, #{departmentId}, #{phone})
+            INSERT INTO teacher(user_id, teacher_no, name, title, department_id, phone)
+            VALUES (#{userId}, #{teacherNo}, #{name}, #{title}, #{departmentId}, #{phone})
             """)
     int insertTeacher(Map<String, Object> body);
 
@@ -106,6 +110,12 @@ public interface StudentSystemMapper {
 
     @Delete("DELETE FROM teacher WHERE id=#{id}")
     int deleteTeacher(@Param("id") long id);
+
+    @Select("SELECT user_id FROM teacher WHERE id=#{id}")
+    Long findTeacherUserId(@Param("id") long id);
+
+    @Select("SELECT COUNT(*) FROM course WHERE teacher_id=#{teacherId}")
+    long countTeacherCoursesById(@Param("teacherId") long teacherId);
 
     @Select("""
             <script>

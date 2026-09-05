@@ -8,7 +8,7 @@ import {
 import http from './api'
 
 type Role = 'ADMIN' | 'TEACHER' | 'STUDENT'
-type MenuKey = 'dashboard' | 'students' | 'teachers' | 'courses' | 'enrollments' | 'grades' | 'attendance' | 'notices' | 'departments' | 'classes'
+type MenuKey = 'dashboard' | 'users' | 'roles' | 'students' | 'teachers' | 'courses' | 'enrollments' | 'grades' | 'attendance' | 'notices' | 'departments' | 'classes'
 
 const token = ref(localStorage.getItem('student_token') || '')
 const user = ref<any>(JSON.parse(localStorage.getItem('student_user') || 'null'))
@@ -33,13 +33,16 @@ const role = computed<Role>(() => user.value?.role || 'ADMIN')
 const isAdmin = computed(() => role.value === 'ADMIN')
 const isTeacher = computed(() => role.value === 'TEACHER')
 const pageTitle = computed(() => ({
-  dashboard: '工作台', students: '学生管理', teachers: '教师管理', courses: '课程管理', enrollments: '选课管理',
-  grades: '成绩管理', attendance: '考勤管理', notices: '通知公告', departments: '院系管理', classes: '班级管理'
+  dashboard: '工作台', users: '用户管理', roles: '角色说明', students: '学生管理', teachers: '教师管理',
+  courses: '课程管理', enrollments: '选课管理', grades: '成绩管理', attendance: '考勤管理',
+  notices: '通知公告', departments: '院系管理', classes: '班级管理'
 }[activeMenu.value]))
 
 const menus = computed(() => {
   const base = [{ key: 'dashboard', label: '工作台', icon: House }]
   if (isAdmin.value) return [...base,
+    { key: 'users', label: '用户管理', icon: User },
+    { key: 'roles', label: '角色说明', icon: Setting },
     { key: 'students', label: '学生管理', icon: Avatar },
     { key: 'teachers', label: '教师管理', icon: UserFilled },
     { key: 'courses', label: '课程管理', icon: Notebook },
@@ -52,8 +55,10 @@ const menus = computed(() => {
 
 const columns = computed(() => {
   const map: Record<string, any[]> = {
+    users: [{ prop: 'username', label: '用户名' }, { prop: 'realName', label: '姓名' }, { prop: 'role', label: '角色' }, { prop: 'status', label: '状态' }, { prop: 'createdAt', label: '创建时间' }],
+    roles: [{ prop: 'code', label: '角色编码' }, { prop: 'name', label: '角色名称' }, { prop: 'description', label: '权限范围' }],
     students: [{ prop: 'studentNo', label: '学号' }, { prop: 'name', label: '姓名' }, { prop: 'gender', label: '性别' }, { prop: 'departmentName', label: '院系' }, { prop: 'className', label: '班级' }, { prop: 'phone', label: '联系方式' }, { prop: 'status', label: '状态' }],
-    teachers: [{ prop: 'teacherNo', label: '工号' }, { prop: 'name', label: '姓名' }, { prop: 'title', label: '职称' }, { prop: 'departmentName', label: '院系' }, { prop: 'phone', label: '联系方式' }],
+    teachers: [{ prop: 'teacherNo', label: '工号' }, { prop: 'name', label: '姓名' }, { prop: 'username', label: '登录账号' }, { prop: 'title', label: '职称' }, { prop: 'departmentName', label: '院系' }, { prop: 'phone', label: '联系方式' }, { prop: 'userStatus', label: '账号状态' }],
     classes: [{ prop: 'name', label: '班级名称' }, { prop: 'code', label: '班级编码' }, { prop: 'departmentName', label: '所属院系' }, { prop: 'gradeYear', label: '年级' }],
     courses: [{ prop: 'courseNo', label: '课程编号' }, { prop: 'name', label: '课程名称' }, { prop: 'credit', label: '学分' }, { prop: 'hours', label: '学时' }, { prop: 'semester', label: '学期' }, { prop: 'teacherName', label: '授课教师' }],
     enrollments: [{ prop: 'courseName', label: '课程' }, { prop: 'studentNo', label: '学号' }, { prop: 'studentName', label: '学生' }, { prop: 'status', label: '状态' }, { prop: 'enrolledAt', label: '选课时间' }],
@@ -101,8 +106,8 @@ async function loadRows() {
   loading.value = true
   try {
     const url = `/api/${activeMenu.value}`
-    const data: any = await http.get(url, { params: activeMenu.value === 'students' ? { page: page.value, size: pageSize.value, keyword: keyword.value } : {} })
-    if (activeMenu.value === 'students') {
+    const data: any = await http.get(url, { params: ['students', 'users'].includes(activeMenu.value) ? { page: page.value, size: pageSize.value, keyword: keyword.value } : {} })
+    if (['students', 'users'].includes(activeMenu.value)) {
       rows.value = data.records
       total.value = data.total
     } else rows.value = data || []
@@ -213,8 +218,8 @@ onMounted(() => { if (loggedIn.value) loadDashboard() })
           <el-card shadow="never" class="panel quick-panel"><template #header><div class="panel-title">快捷入口</div></template><div class="quick-grid"><button v-for="item in menus.slice(1, 5)" :key="item.key" @click="selectMenu(item.key as MenuKey)"><component :is="item.icon" /><span>{{ item.label }}</span></button></div></el-card></div>
         </template>
         <template v-else>
-          <div class="toolbar"><div class="search-box" v-if="activeMenu === 'students'"><el-input v-model="keyword" placeholder="搜索学号、姓名或手机号" clearable @keyup.enter="loadRows"><template #prefix><Search /></template></el-input><el-button type="primary" :icon="Search" @click="loadRows">查询</el-button></div><span v-else class="record-count">共 {{ rows.length }} 条记录</span><div class="toolbar-actions"><el-button v-if="['students','teachers','courses','departments','classes','notices'].includes(activeMenu) && (isAdmin || (isTeacher && activeMenu === 'notices'))" type="primary" :icon="Plus" @click="openCreate">新增</el-button><el-button :icon="DataAnalysis" @click="loadRows">刷新</el-button></div></div>
-          <el-card shadow="never" class="table-panel"><el-table v-loading="loading" :data="rows" stripe height="calc(100vh - 285px)"><el-table-column v-for="column in columns" :key="column.prop" :prop="column.prop" :label="column.label" min-width="120"><template #default="{ row }"><el-tag v-if="column.prop === 'status' || column.prop === 'gradeStatus'" :type="row[column.prop] === '合格' || row[column.prop] === '出勤' || row[column.prop] === '在读' ? 'success' : 'warning'" effect="light">{{ row[column.prop] }}</el-tag><span v-else-if="column.prop === 'targetRole'">{{ formatRole(row[column.prop]) }}</span><span v-else>{{ row[column.prop] ?? '-' }}</span></template></el-table-column><el-table-column v-if="isAdmin && ['students','teachers','courses','departments','classes','notices'].includes(activeMenu)" fixed="right" label="操作" width="150"><template #default="{ row }"><el-button link type="primary" :icon="Edit" @click="openEdit(row)">编辑</el-button><el-button link type="danger" :icon="Delete" @click="removeRow(row)">删除</el-button></template></el-table-column><el-table-column v-if="isTeacher && activeMenu === 'grades'" fixed="right" label="操作" width="100"><template #default="{ row }"><el-button link type="primary" :icon="Edit" @click="openEdit(row)">录入</el-button></template></el-table-column></el-table><div v-if="activeMenu === 'students'" class="pagination"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" layout="total, sizes, prev, pager, next" :total="total" @change="loadRows" /></div></el-card>
+          <div class="toolbar"><div class="search-box" v-if="['students', 'users'].includes(activeMenu)"><el-input v-model="keyword" :placeholder="activeMenu === 'users' ? '搜索用户名或姓名' : '搜索学号、姓名或手机号'" clearable @keyup.enter="loadRows"><template #prefix><Search /></template></el-input><el-button type="primary" :icon="Search" @click="loadRows">查询</el-button></div><span v-else class="record-count">共 {{ rows.length }} 条记录</span><div class="toolbar-actions"><el-button v-if="['users','students','teachers','courses','departments','classes','notices'].includes(activeMenu) && (isAdmin || (isTeacher && activeMenu === 'notices'))" type="primary" :icon="Plus" @click="openCreate">新增</el-button><el-button :icon="DataAnalysis" @click="loadRows">刷新</el-button></div></div>
+          <el-card shadow="never" class="table-panel"><el-table v-loading="loading" :data="rows" stripe height="calc(100vh - 285px)"><el-table-column v-for="column in columns" :key="column.prop" :prop="column.prop" :label="column.label" min-width="120"><template #default="{ row }"><el-tag v-if="column.prop === 'status' || column.prop === 'gradeStatus' || column.prop === 'userStatus'" :type="row[column.prop] === '合格' || row[column.prop] === '出勤' || row[column.prop] === '在读' || row[column.prop] === '1' ? 'success' : 'warning'" effect="light">{{ column.prop === 'status' && (row[column.prop] === '1' || row[column.prop] === '0') ? (row[column.prop] === '1' ? '启用' : '禁用') : row[column.prop] }}</el-tag><span v-else-if="column.prop === 'targetRole' || column.prop === 'role'">{{ formatRole(row[column.prop]) }}</span><span v-else>{{ row[column.prop] ?? '-' }}</span></template></el-table-column><el-table-column v-if="isAdmin && ['users','students','teachers','courses','departments','classes','notices'].includes(activeMenu)" fixed="right" label="操作" width="150"><template #default="{ row }"><el-button link type="primary" :icon="Edit" @click="openEdit(row)">编辑</el-button><el-button link type="danger" :icon="Delete" @click="removeRow(row)">删除</el-button></template></el-table-column><el-table-column v-if="isTeacher && activeMenu === 'grades'" fixed="right" label="操作" width="100"><template #default="{ row }"><el-button link type="primary" :icon="Edit" @click="openEdit(row)">录入</el-button></template></el-table-column></el-table><div v-if="['students','users'].includes(activeMenu)" class="pagination"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" layout="total, sizes, prev, pager, next" :total="total" @change="loadRows" /></div></el-card>
         </template>
       </el-main>
     </el-container>
@@ -222,8 +227,9 @@ onMounted(() => { if (loggedIn.value) loadDashboard() })
 
   <el-dialog v-model="dialogVisible" :title="dialogTitle" width="520px">
     <el-form label-position="top" class="dialog-form">
-      <template v-if="dialogType === 'students'"><el-form-item label="学号"><el-input v-model="form.studentNo" /></el-form-item><el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item><el-form-item label="性别"><el-select v-model="form.gender"><el-option label="男" value="男" /><el-option label="女" value="女" /></el-select></el-form-item><el-form-item label="联系电话"><el-input v-model="form.phone" /></el-form-item><el-form-item label="邮箱"><el-input v-model="form.email" /></el-form-item></template>
-      <template v-else-if="dialogType === 'teachers'"><el-form-item label="工号"><el-input v-model="form.teacherNo" /></el-form-item><el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item><el-form-item label="职称"><el-input v-model="form.title" /></el-form-item><el-form-item label="院系ID"><el-input-number v-model="form.departmentId" :min="1" /></el-form-item><el-form-item label="联系电话"><el-input v-model="form.phone" /></el-form-item></template>
+      <template v-if="dialogType === 'users'"><el-form-item label="用户名"><el-input v-model="form.username" autocomplete="off" /></el-form-item><el-form-item label="姓名"><el-input v-model="form.realName" /></el-form-item><el-form-item label="角色"><el-select v-model="form.role"><el-option label="管理员" value="ADMIN" /><el-option label="教师" value="TEACHER" /><el-option label="学生" value="STUDENT" /></el-select></el-form-item><el-form-item label="密码"><el-input v-model="form.password" type="password" show-password placeholder="新增默认 123456，编辑留空表示不修改" /></el-form-item><el-form-item label="状态"><el-select v-model="form.status"><el-option label="启用" value="1" /><el-option label="禁用" value="0" /></el-select></el-form-item></template>
+      <template v-else-if="dialogType === 'students'"><el-form-item label="学号"><el-input v-model="form.studentNo" /></el-form-item><el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item><el-form-item label="性别"><el-select v-model="form.gender"><el-option label="男" value="男" /><el-option label="女" value="女" /></el-select></el-form-item><el-form-item label="联系电话"><el-input v-model="form.phone" /></el-form-item><el-form-item label="邮箱"><el-input v-model="form.email" /></el-form-item></template>
+      <template v-else-if="dialogType === 'teachers'"><el-form-item label="登录用户名"><el-input v-model="form.username" :disabled="Boolean(form.id)" /></el-form-item><el-form-item label="初始/重置密码"><el-input v-model="form.password" type="password" show-password placeholder="新增默认 123456，编辑留空表示不修改" /></el-form-item><el-form-item label="工号"><el-input v-model="form.teacherNo" /></el-form-item><el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item><el-form-item label="职称"><el-input v-model="form.title" /></el-form-item><el-form-item label="院系ID"><el-input-number v-model="form.departmentId" :min="1" /></el-form-item><el-form-item label="联系电话"><el-input v-model="form.phone" /></el-form-item><el-form-item v-if="form.id" label="账号状态"><el-select v-model="form.userStatus"><el-option label="启用" value="1" /><el-option label="禁用" value="0" /></el-select></el-form-item></template>
       <template v-else-if="dialogType === 'classes'"><el-form-item label="班级名称"><el-input v-model="form.name" /></el-form-item><el-form-item label="班级编码"><el-input v-model="form.code" /></el-form-item><el-form-item label="院系ID"><el-input-number v-model="form.departmentId" :min="1" /></el-form-item><el-form-item label="年级"><el-input-number v-model="form.gradeYear" :min="2000" :max="2100" /></el-form-item></template>
       <template v-else-if="dialogType === 'departments'"><el-form-item label="院系名称"><el-input v-model="form.name" /></el-form-item><el-form-item label="院系编码"><el-input v-model="form.code" /></el-form-item><el-form-item label="简介"><el-input v-model="form.description" type="textarea" /></el-form-item></template>
       <template v-else-if="dialogType === 'courses'"><el-form-item label="课程编号"><el-input v-model="form.courseNo" /></el-form-item><el-form-item label="课程名称"><el-input v-model="form.name" /></el-form-item><el-form-item label="学分"><el-input-number v-model="form.credit" :min="0" :max="10" /></el-form-item><el-form-item label="学时"><el-input-number v-model="form.hours" :min="1" :max="200" /></el-form-item><el-form-item label="学期"><el-input v-model="form.semester" /></el-form-item><el-form-item label="授课教师ID"><el-input-number v-model="form.teacherId" :min="1" /></el-form-item></template>

@@ -1,9 +1,13 @@
 package com.student.academic;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.student.common.BusinessException;
 import com.student.common.PageResult;
+import com.student.system.entity.UserEntity;
 import com.student.system.mapper.StudentSystemMapper;
+import com.student.system.mapper.UserMapper;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,9 +21,13 @@ import java.util.Map;
 @Service
 public class AcademicService {
     private final StudentSystemMapper mapper;
+    private final UserMapper userMapper;
+    private final PasswordEncoder passwordEncoder;
 
-    public AcademicService(StudentSystemMapper mapper) {
+    public AcademicService(StudentSystemMapper mapper, UserMapper userMapper, PasswordEncoder passwordEncoder) {
         this.mapper = mapper;
+        this.userMapper = userMapper;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public List<Map<String, Object>> departments(Authentication authentication) {
@@ -108,6 +116,24 @@ public class AcademicService {
     @Transactional
     public void createTeacher(Map<String, Object> body, Authentication authentication) {
         requireAdmin(authentication);
+        String username = required(body, "username").trim();
+        String name = required(body, "name").trim();
+        if (userMapper.selectCount(new QueryWrapper<UserEntity>().eq("username", username)) > 0) {
+            throw new BusinessException(409, "用户名已存在");
+        }
+
+        UserEntity account = new UserEntity();
+        account.setUsername(username);
+        account.setPassword(passwordEncoder.encode(
+                body.get("password") == null || String.valueOf(body.get("password")).isBlank()
+                        ? "123456" : String.valueOf(body.get("password"))));
+        account.setRealName(name);
+        account.setRole("TEACHER");
+        account.setStatus("1");
+        userMapper.insert(account);
+
+        body.put("userId", account.getId());
+        body.put("name", name);
         mapper.insertTeacher(body);
     }
 
@@ -116,12 +142,31 @@ public class AcademicService {
         requireAdmin(authentication);
         body.put("id", id);
         mapper.updateTeacher(body);
+        Long userId = mapper.findTeacherUserId(id);
+        if (userId != null) {
+            UserEntity account = userMapper.selectById(userId);
+            if (account != null) {
+                account.setRealName(required(body, "name").trim());
+                account.setStatus("0".equals(String.valueOf(body.get("userStatus"))) ? "0" : "1");
+                if (body.get("password") != null && !String.valueOf(body.get("password")).isBlank()) {
+                    account.setPassword(passwordEncoder.encode(String.valueOf(body.get("password"))));
+                }
+                userMapper.updateById(account);
+            }
+        }
     }
 
     @Transactional
     public void deleteTeacher(long id, Authentication authentication) {
         requireAdmin(authentication);
+        if (mapper.countTeacherCoursesById(id) > 0) {
+            throw new BusinessException(409, "教师仍负责课程，请先调整课程授课教师");
+        }
+        Long userId = mapper.findTeacherUserId(id);
         mapper.deleteTeacher(id);
+        if (userId != null) {
+            userMapper.deleteById(userId);
+        }
     }
 
     public List<Map<String, Object>> courses(Authentication authentication) {

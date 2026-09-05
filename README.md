@@ -11,6 +11,7 @@
 - 成绩总评按平时 30%、期中 30%、期末 40% 自动计算。
 - 后端采用 Spring MVC 分层，Controller 只负责 REST 请求适配，Service 负责业务规则，Mapper 层统一由 MyBatis-Plus Starter 管理。
 - 数据库读写统一通过 MyBatis-Plus Mapper 完成；简单 CRUD 使用 `BaseMapper`，关联查询使用 Mapper 自定义 SQL，业务代码不直接使用 JdbcTemplate 或其他 JDBC API。
+- 管理员可通过 `/api/users` 管理登录账号，通过 `/api/roles` 查看角色权限；新增教师会同时创建 `TEACHER` 登录账号。
 
 ## 环境
 
@@ -60,6 +61,34 @@ mvn spring-boot:run
 后端地址：`http://localhost:8080`
 
 OpenAPI JSON：`http://localhost:8080/v3/api-docs`
+
+核心管理接口：
+
+```text
+GET    /api/users?page=1&size=10&keyword=关键字
+POST   /api/users
+PUT    /api/users/{id}
+DELETE /api/users/{id}
+GET    /api/roles
+
+POST   /api/teachers
+PUT    /api/teachers/{id}
+DELETE /api/teachers/{id}
+```
+
+新增教师请求示例：
+
+```json
+{
+  "username": "teacher02",
+  "password": "123456",
+  "teacherNo": "T2025002",
+  "name": "王老师",
+  "title": "讲师",
+  "departmentId": 1,
+  "phone": "13800000002"
+}
+```
 
 ## 启动前端
 
