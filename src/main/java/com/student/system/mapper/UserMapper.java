@@ -21,6 +21,12 @@ public interface UserMapper extends BaseMapper<UserEntity> {
             """)
     Map<String, Object> findProfile(Long id);
 
+    @Select("""
+            SELECT id, role, status
+            FROM sys_user WHERE id = #{id}
+            """)
+    Map<String, Object> findAuthenticationUser(Long id);
+
     @Select("SELECT COUNT(*) FROM teacher WHERE user_id = #{userId}")
     long countTeacherReference(Long userId);
 

@@ -6,6 +6,7 @@ import com.student.system.entity.UserEntity;
 import com.student.system.mapper.UserMapper;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.dao.DataAccessException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,8 @@ public class AuthService {
     public record LoginRequest(@NotBlank String username, @NotBlank String password) {}
 
     public Map<String, Object> login(LoginRequest request) {
-        Map<String, Object> user = userMapper.findLoginUser(request.username());
+        String username = request.username().trim();
+        Map<String, Object> user = userMapper.findLoginUser(username);
         if (user == null || !encoder.matches(request.password(), String.valueOf(user.get("password")))) {
             throw new BusinessException(401, "用户名或密码错误");
         }
@@ -41,8 +43,12 @@ public class AuthService {
 
         long userId = ((Number) user.get("id")).longValue();
         String role = String.valueOf(user.get("role"));
-        String token = jwt.createToken(userId, request.username(), role);
-        redis.opsForValue().set("session:" + userId, token, jwt.expirationMs(), TimeUnit.MILLISECONDS);
+        String token = jwt.createToken(userId, username, role);
+        try {
+            redis.opsForValue().set("session:" + userId, token, jwt.expirationMs(), TimeUnit.MILLISECONDS);
+        } catch (DataAccessException e) {
+            throw new BusinessException(503, "Redis 服务不可用，暂时无法登录");
+        }
         return Map.of("token", token, "user", Map.of(
                 "id", userId,
                 "username", user.get("username"),
@@ -56,8 +62,17 @@ public class AuthService {
         }
         try {
             String token = header.substring(7);
-            long ttl = Math.max(1, jwt.parse(token).getExpiration().getTime() - System.currentTimeMillis());
+            var claims = jwt.parse(token);
+            long userId = Long.parseLong(claims.getSubject());
+            long ttl = Math.max(1, claims.getExpiration().getTime() - System.currentTimeMillis());
+            String sessionKey = "session:" + userId;
+            String activeToken = redis.opsForValue().get(sessionKey);
+            if (token.equals(activeToken)) {
+                redis.delete(sessionKey);
+            }
             redis.opsForValue().set("jwt:blacklist:" + token, "1", ttl, TimeUnit.MILLISECONDS);
+        } catch (DataAccessException e) {
+            throw new BusinessException(503, "Redis 服务不可用，暂时无法退出登录");
         } catch (Exception ignored) {
             // Expired tokens are already invalid.
         }
@@ -69,9 +84,17 @@ public class AuthService {
 
     @Transactional
     public void updateProfile(Map<String, Object> body, Authentication authentication) {
+        Object realName = body.get("realName");
+        if (realName == null || String.valueOf(realName).isBlank()) {
+            throw new BusinessException(400, "realName 不能为空");
+        }
+        UserEntity existing = userMapper.selectById(userId(authentication));
+        if (existing == null) {
+            throw new BusinessException(404, "用户不存在");
+        }
         UserEntity user = new UserEntity();
-        user.setId(userId(authentication));
-        user.setRealName(String.valueOf(body.getOrDefault("realName", "")));
+        user.setId(existing.getId());
+        user.setRealName(String.valueOf(realName).trim());
         userMapper.updateById(user);
     }
 

@@ -18,7 +18,7 @@
 | 1. 项目初始化 | 后端、前端、数据库目录及 Git 仓库初始化 | JDK 21、Spring Boot 3.x、Vue 3、Vite | 已完成 | 项目已接入远程 `main` 分支 |
 | 2. 数据库设计 | 用户、角色、院系、班级、学生、教师、课程、选课、成绩、考勤、通知和日志表 | MySQL 8.x、utf8mb4 | 已完成 | `database/init.sql` 可初始化结构和演示数据 |
 | 3. 持久层实现 | 数据库实体、Mapper、条件查询、分页和关联查询 | MyBatis-Plus Starter、`BaseMapper`、Wrapper、`Page/IPage`、Mapper 自定义查询 | 核心实体化已完成 | 院系、班级、学生、教师和课程基础 CRUD 已使用实体与 `BaseMapper`；用户分页使用 `BaseMapper + Page`，多表列表和聚合统计保留在 Mapper 自定义 SQL |
-| 4. 认证授权 | 登录、JWT、Redis 会话、黑名单、角色权限和数据范围 | Spring Security、JWT、Redis 7.x | 用户与角色管理已完成 | 管理员、教师、学生三类账号可认证；管理员可维护用户、查看角色，教师档案自动关联登录账号 |
+| 4. 认证授权 | 登录、JWT、Redis 会话、黑名单、角色权限和数据范围 | Spring Security、JWT、Redis 7.x | 核心认证授权已完成 | JWT 使用唯一 `jti`，并同时通过签名、Redis 会话、黑名单和数据库账号状态校验；角色从数据库实时确认，未认证、无权限和 Redis 不可用均返回统一 JSON 错误 |
 | 5. 教学业务 API | 学生、院系、班级、教师、课程、选课、成绩、考勤、通知和统计 | REST `/api` 接口 + Service 业务层 | 基础业务已完成，持续扩展 | Controller 仅负责接口适配，业务权限和成绩计算由 Service 统一处理；教师已支持账号关联和新增、修改、删除 |
 | 6. 前端页面 | 登录、首页、数据列表、表单、分页、权限菜单和个人中心 | Vue 3、TypeScript、Element Plus、Pinia、Axios | 基础页面已完成，持续扩展 | 管理员已接入用户、角色、学生、教师、课程、院系、班级和通知入口；教师、学生业务页面继续完善 |
 | 7. 联调与测试 | 后端构建、前端构建、接口测试、权限测试和缓存测试 | Maven、npm、Spring Boot Test | 进行中 | JDK 21 后端编译通过；前端构建、真实 MySQL/Redis 联调和自动化测试待完成 |
