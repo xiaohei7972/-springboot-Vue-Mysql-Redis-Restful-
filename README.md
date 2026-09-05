@@ -40,6 +40,8 @@ src/main/resources/db/data.sql
 
 可通过 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_DATABASE`、`MYSQL_USERNAME` 和 `MYSQL_PASSWORD` 覆盖。
 
+如果数据库已经在之前的版本初始化过，请额外执行 `database/fix-default-password.sql`，将三个演示账号统一恢复为密码 `123456`。
+
 ## 启动 Redis
 
 ```bash

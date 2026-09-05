@@ -6,9 +6,9 @@ INSERT INTO sys_department (id, name, code, description) VALUES
 INSERT INTO sys_class (id, name, code, department_id, grade_year) VALUES
 (1, '软件工程2025级1班', 'SE2501', 1, 2025), (2, '信息安全2025级1班', 'IS2501', 1, 2025), (3, '财务管理2025级1班', 'CW2501', 2, 2025);
 INSERT INTO sys_user (id, username, password, real_name, role, status) VALUES
-(1, 'admin', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '系统管理员', 'ADMIN', '1'),
-(2, 'teacher01', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '张老师', 'TEACHER', '1'),
-(3, 'student01', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', '李同学', 'STUDENT', '1');
+(1, 'admin', '$2a$10$DsQgcCwv/B9pmXQpUzUWVeTf1i.s957eVVRZ1g3oJpl1xJ8AgE/tu', '系统管理员', 'ADMIN', '1'),
+(2, 'teacher01', '$2a$10$DsQgcCwv/B9pmXQpUzUWVeTf1i.s957eVVRZ1g3oJpl1xJ8AgE/tu', '张老师', 'TEACHER', '1'),
+(3, 'student01', '$2a$10$DsQgcCwv/B9pmXQpUzUWVeTf1i.s957eVVRZ1g3oJpl1xJ8AgE/tu', '李同学', 'STUDENT', '1');
 INSERT INTO teacher (id, user_id, teacher_no, name, title, department_id, phone) VALUES (1, 2, 'T2025001', '张老师', '讲师', 1, '13800000001');
 INSERT INTO student (id, user_id, student_no, name, gender, phone, email, department_id, class_id, admission_year) VALUES
 (1, 3, 'S2025001', '李同学', '男', '13900000001', 'student01@example.com', 1, 1, 2025),
