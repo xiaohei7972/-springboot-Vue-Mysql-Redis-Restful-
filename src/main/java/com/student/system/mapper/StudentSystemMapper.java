@@ -92,6 +92,21 @@ public interface StudentSystemMapper {
             """)
     List<Map<String, Object>> listTeachers();
 
+    @Insert("""
+            INSERT INTO teacher(teacher_no, name, title, department_id, phone)
+            VALUES (#{teacherNo}, #{name}, #{title}, #{departmentId}, #{phone})
+            """)
+    int insertTeacher(Map<String, Object> body);
+
+    @Update("""
+            UPDATE teacher SET teacher_no=#{teacherNo}, name=#{name}, title=#{title},
+            department_id=#{departmentId}, phone=#{phone} WHERE id=#{id}
+            """)
+    int updateTeacher(Map<String, Object> body);
+
+    @Delete("DELETE FROM teacher WHERE id=#{id}")
+    int deleteTeacher(@Param("id") long id);
+
     @Select("""
             <script>
             SELECT c.id, c.course_no AS courseNo, c.name, c.credit, c.hours, c.semester,

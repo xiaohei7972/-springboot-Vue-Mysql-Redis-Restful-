@@ -19,8 +19,8 @@
 | 2. 数据库设计 | 用户、角色、院系、班级、学生、教师、课程、选课、成绩、考勤、通知和日志表 | MySQL 8.x、utf8mb4 | 已完成 | `database/init.sql` 可初始化结构和演示数据 |
 | 3. 持久层实现 | 数据库实体、Mapper、条件查询、分页和关联查询 | MyBatis-Plus Starter、`BaseMapper`、Wrapper、Mapper 自定义查询 | MVC 基础分层已完成，实体化 CRUD 持续补齐 | Controller 不直接访问数据库；用户模块已使用 `BaseMapper`，教学模块通过 Mapper 完成基础写入和关联查询 |
 | 4. 认证授权 | 登录、JWT、Redis 会话、黑名单、角色权限和数据范围 | Spring Security、JWT、Redis 7.x | 已完成基础版 | 管理员、教师、学生三类账号可认证 |
-| 5. 教学业务 API | 学生、院系、班级、教师、课程、选课、成绩、考勤、通知和统计 | REST `/api` 接口 + Service 业务层 | 已完成 MVC 基础版 | Controller 仅负责接口适配，业务权限和成绩计算由 Service 统一处理 |
-| 6. 前端页面 | 登录、首页、数据列表、表单、分页、权限菜单和个人中心 | Vue 3、TypeScript、Element Plus、Pinia、Axios | 已完成基础版 | 已提供登录、首页、核心列表和管理表单 |
+| 5. 教学业务 API | 学生、院系、班级、教师、课程、选课、成绩、考勤、通知和统计 | REST `/api` 接口 + Service 业务层 | 基础业务已完成，持续扩展 | Controller 仅负责接口适配，业务权限和成绩计算由 Service 统一处理；教师已支持新增、修改、删除 |
+| 6. 前端页面 | 登录、首页、数据列表、表单、分页、权限菜单和个人中心 | Vue 3、TypeScript、Element Plus、Pinia、Axios | 基础页面已完成，持续扩展 | 管理员已接入学生、教师、课程、院系、班级和通知入口；教师、学生业务页面继续完善 |
 | 7. 联调与测试 | 后端构建、前端构建、接口测试、权限测试和缓存测试 | Maven、npm、Spring Boot Test | 进行中 | JDK 21 后端编译通过；前端构建、真实 MySQL/Redis 联调和自动化测试待完成 |
 | 8. 课程交付 | README、API 说明、演示账号、论文素材、答辩流程 | Markdown、OpenAPI JSON、截图素材 | 待完成 | 满足任务书课程论文和答辩交付要求 |
 

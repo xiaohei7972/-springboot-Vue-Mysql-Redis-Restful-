@@ -106,6 +106,26 @@ public class AcademicController {
         return ApiResponse.ok(academicService.teachers(authentication));
     }
 
+    @PostMapping("/teachers")
+    public ApiResponse<Void> createTeacher(@RequestBody Map<String, Object> body,
+                                           Authentication authentication) {
+        academicService.createTeacher(body, authentication);
+        return ApiResponse.ok();
+    }
+
+    @PutMapping("/teachers/{id}")
+    public ApiResponse<Void> updateTeacher(@PathVariable long id, @RequestBody Map<String, Object> body,
+                                           Authentication authentication) {
+        academicService.updateTeacher(id, body, authentication);
+        return ApiResponse.ok();
+    }
+
+    @DeleteMapping("/teachers/{id}")
+    public ApiResponse<Void> deleteTeacher(@PathVariable long id, Authentication authentication) {
+        academicService.deleteTeacher(id, authentication);
+        return ApiResponse.ok();
+    }
+
     @GetMapping("/courses")
     public ApiResponse<?> courses(Authentication authentication) {
         return ApiResponse.ok(academicService.courses(authentication));

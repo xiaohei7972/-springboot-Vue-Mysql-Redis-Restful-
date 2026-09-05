@@ -105,6 +105,25 @@ public class AcademicService {
         return mapper.listTeachers();
     }
 
+    @Transactional
+    public void createTeacher(Map<String, Object> body, Authentication authentication) {
+        requireAdmin(authentication);
+        mapper.insertTeacher(body);
+    }
+
+    @Transactional
+    public void updateTeacher(long id, Map<String, Object> body, Authentication authentication) {
+        requireAdmin(authentication);
+        body.put("id", id);
+        mapper.updateTeacher(body);
+    }
+
+    @Transactional
+    public void deleteTeacher(long id, Authentication authentication) {
+        requireAdmin(authentication);
+        mapper.deleteTeacher(id);
+    }
+
     public List<Map<String, Object>> courses(Authentication authentication) {
         Long teacherUserId = "TEACHER".equals(role(authentication)) ? userId(authentication) : null;
         return mapper.listCourses(teacherUserId);
