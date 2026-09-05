@@ -6,6 +6,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.dao.DataAccessException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -27,4 +28,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ApiResponse<Void> other(Exception e) { return ApiResponse.error(500, "服务器内部错误"); }
+
+    @ExceptionHandler(DataAccessException.class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    public ApiResponse<Void> database(DataAccessException e) { return ApiResponse.error(409, "数据已存在或当前数据仍被业务引用"); }
 }
