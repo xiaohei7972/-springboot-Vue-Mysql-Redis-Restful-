@@ -3,8 +3,18 @@ package com.student.academic;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.student.common.BusinessException;
 import com.student.common.PageResult;
+import com.student.system.entity.ClassEntity;
+import com.student.system.entity.CourseEntity;
+import com.student.system.entity.DepartmentEntity;
+import com.student.system.entity.StudentEntity;
+import com.student.system.entity.TeacherEntity;
 import com.student.system.entity.UserEntity;
+import com.student.system.mapper.ClassMapper;
+import com.student.system.mapper.CourseMapper;
+import com.student.system.mapper.DepartmentMapper;
+import com.student.system.mapper.StudentMapper;
 import com.student.system.mapper.StudentSystemMapper;
+import com.student.system.mapper.TeacherMapper;
 import com.student.system.mapper.UserMapper;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -21,11 +31,23 @@ import java.util.Map;
 @Service
 public class AcademicService {
     private final StudentSystemMapper mapper;
+    private final DepartmentMapper departmentMapper;
+    private final ClassMapper classMapper;
+    private final StudentMapper studentMapper;
+    private final TeacherMapper teacherMapper;
+    private final CourseMapper courseMapper;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
-    public AcademicService(StudentSystemMapper mapper, UserMapper userMapper, PasswordEncoder passwordEncoder) {
+    public AcademicService(StudentSystemMapper mapper, DepartmentMapper departmentMapper, ClassMapper classMapper,
+                           StudentMapper studentMapper, TeacherMapper teacherMapper, CourseMapper courseMapper,
+                           UserMapper userMapper, PasswordEncoder passwordEncoder) {
         this.mapper = mapper;
+        this.departmentMapper = departmentMapper;
+        this.classMapper = classMapper;
+        this.studentMapper = studentMapper;
+        this.teacherMapper = teacherMapper;
+        this.courseMapper = courseMapper;
         this.userMapper = userMapper;
         this.passwordEncoder = passwordEncoder;
     }
@@ -38,19 +60,30 @@ public class AcademicService {
     @Transactional
     public void createDepartment(Map<String, Object> body, Authentication authentication) {
         requireAdmin(authentication);
-        mapper.insertDepartment(required(body, "name"), required(body, "code"), body.get("description"));
+        DepartmentEntity department = new DepartmentEntity();
+        department.setName(required(body, "name"));
+        department.setCode(required(body, "code"));
+        department.setDescription(stringValue(body.get("description")));
+        departmentMapper.insert(department);
     }
 
     @Transactional
     public void updateDepartment(long id, Map<String, Object> body, Authentication authentication) {
         requireAdmin(authentication);
-        mapper.updateDepartment(id, required(body, "name"), required(body, "code"), body.get("description"));
+        DepartmentEntity department = departmentMapper.selectById(id);
+        if (department == null) {
+            throw new BusinessException(404, "院系不存在");
+        }
+        department.setName(required(body, "name"));
+        department.setCode(required(body, "code"));
+        department.setDescription(stringValue(body.get("description")));
+        departmentMapper.updateById(department);
     }
 
     @Transactional
     public void deleteDepartment(long id, Authentication authentication) {
         requireAdmin(authentication);
-        mapper.deleteDepartment(id);
+        departmentMapper.deleteById(id);
     }
 
     public List<Map<String, Object>> classes(Authentication authentication) {
@@ -61,21 +94,32 @@ public class AcademicService {
     @Transactional
     public void createClass(Map<String, Object> body, Authentication authentication) {
         requireAdmin(authentication);
-        mapper.insertClass(required(body, "name"), required(body, "code"), requiredLong(body, "departmentId"),
-                requiredInt(body, "gradeYear"));
+        ClassEntity entity = new ClassEntity();
+        entity.setName(required(body, "name"));
+        entity.setCode(required(body, "code"));
+        entity.setDepartmentId(requiredLong(body, "departmentId"));
+        entity.setGradeYear(requiredInt(body, "gradeYear"));
+        classMapper.insert(entity);
     }
 
     @Transactional
     public void updateClass(long id, Map<String, Object> body, Authentication authentication) {
         requireAdmin(authentication);
-        mapper.updateClass(id, required(body, "name"), required(body, "code"), requiredLong(body, "departmentId"),
-                requiredInt(body, "gradeYear"));
+        ClassEntity entity = classMapper.selectById(id);
+        if (entity == null) {
+            throw new BusinessException(404, "班级不存在");
+        }
+        entity.setName(required(body, "name"));
+        entity.setCode(required(body, "code"));
+        entity.setDepartmentId(requiredLong(body, "departmentId"));
+        entity.setGradeYear(requiredInt(body, "gradeYear"));
+        classMapper.updateById(entity);
     }
 
     @Transactional
     public void deleteClass(long id, Authentication authentication) {
         requireAdmin(authentication);
-        mapper.deleteClass(id);
+        classMapper.deleteById(id);
     }
 
     public PageResult<Map<String, Object>> students(int page, int size, String keyword, Authentication authentication) {
@@ -90,22 +134,42 @@ public class AcademicService {
     @Transactional
     public void createStudent(Map<String, Object> body, Authentication authentication) {
         requireAdmin(authentication);
-        body.putIfAbsent("status", "在读");
-        mapper.insertStudent(body);
+        StudentEntity student = new StudentEntity();
+        student.setStudentNo(required(body, "studentNo"));
+        student.setName(required(body, "name"));
+        student.setGender(stringValue(body.get("gender")));
+        student.setPhone(stringValue(body.get("phone")));
+        student.setEmail(stringValue(body.get("email")));
+        student.setDepartmentId(optionalLong(body.get("departmentId")));
+        student.setClassId(optionalLong(body.get("classId")));
+        student.setAdmissionYear(optionalInt(body.get("admissionYear")));
+        student.setStatus(body.get("status") == null ? "在读" : String.valueOf(body.get("status")));
+        studentMapper.insert(student);
     }
 
     @Transactional
     public void updateStudent(long id, Map<String, Object> body, Authentication authentication) {
         requireAdmin(authentication);
-        body.put("id", id);
-        body.putIfAbsent("status", "在读");
-        mapper.updateStudent(body);
+        StudentEntity student = studentMapper.selectById(id);
+        if (student == null) {
+            throw new BusinessException(404, "学生不存在");
+        }
+        if (body.containsKey("studentNo")) student.setStudentNo(required(body, "studentNo"));
+        if (body.containsKey("name")) student.setName(required(body, "name"));
+        if (body.containsKey("gender")) student.setGender(stringValue(body.get("gender")));
+        if (body.containsKey("phone")) student.setPhone(stringValue(body.get("phone")));
+        if (body.containsKey("email")) student.setEmail(stringValue(body.get("email")));
+        if (body.containsKey("departmentId")) student.setDepartmentId(optionalLong(body.get("departmentId")));
+        if (body.containsKey("classId")) student.setClassId(optionalLong(body.get("classId")));
+        if (body.containsKey("admissionYear")) student.setAdmissionYear(optionalInt(body.get("admissionYear")));
+        if (body.containsKey("status")) student.setStatus(required(body, "status"));
+        studentMapper.updateById(student);
     }
 
     @Transactional
     public void deleteStudent(long id, Authentication authentication) {
         requireAdmin(authentication);
-        mapper.deleteStudent(id);
+        studentMapper.deleteById(id);
     }
 
     public List<Map<String, Object>> teachers(Authentication authentication) {
@@ -118,6 +182,7 @@ public class AcademicService {
         requireAdmin(authentication);
         String username = required(body, "username").trim();
         String name = required(body, "name").trim();
+        String teacherNo = required(body, "teacherNo").trim();
         if (userMapper.selectCount(new QueryWrapper<UserEntity>().eq("username", username)) > 0) {
             throw new BusinessException(409, "用户名已存在");
         }
@@ -132,22 +197,40 @@ public class AcademicService {
         account.setStatus("1");
         userMapper.insert(account);
 
-        body.put("userId", account.getId());
-        body.put("name", name);
-        mapper.insertTeacher(body);
+        TeacherEntity teacher = new TeacherEntity();
+        teacher.setUserId(account.getId());
+        teacher.setTeacherNo(teacherNo);
+        teacher.setName(name);
+        teacher.setTitle(stringValue(body.get("title")));
+        teacher.setDepartmentId(optionalLong(body.get("departmentId")));
+        teacher.setPhone(stringValue(body.get("phone")));
+        teacherMapper.insert(teacher);
     }
 
     @Transactional
     public void updateTeacher(long id, Map<String, Object> body, Authentication authentication) {
         requireAdmin(authentication);
-        body.put("id", id);
-        mapper.updateTeacher(body);
-        Long userId = mapper.findTeacherUserId(id);
+        TeacherEntity teacher = teacherMapper.selectById(id);
+        if (teacher == null) {
+            throw new BusinessException(404, "教师不存在");
+        }
+        if (body.containsKey("teacherNo")) teacher.setTeacherNo(required(body, "teacherNo").trim());
+        if (body.containsKey("name")) teacher.setName(required(body, "name").trim());
+        if (body.containsKey("title")) teacher.setTitle(stringValue(body.get("title")));
+        if (body.containsKey("departmentId")) teacher.setDepartmentId(optionalLong(body.get("departmentId")));
+        if (body.containsKey("phone")) teacher.setPhone(stringValue(body.get("phone")));
+        teacherMapper.updateById(teacher);
+
+        Long userId = teacher.getUserId();
         if (userId != null) {
             UserEntity account = userMapper.selectById(userId);
             if (account != null) {
-                account.setRealName(required(body, "name").trim());
-                account.setStatus("0".equals(String.valueOf(body.get("userStatus"))) ? "0" : "1");
+                if (body.containsKey("name")) {
+                    account.setRealName(teacher.getName());
+                }
+                if (body.containsKey("userStatus")) {
+                    account.setStatus("0".equals(String.valueOf(body.get("userStatus"))) ? "0" : "1");
+                }
                 if (body.get("password") != null && !String.valueOf(body.get("password")).isBlank()) {
                     account.setPassword(passwordEncoder.encode(String.valueOf(body.get("password"))));
                 }
@@ -162,8 +245,12 @@ public class AcademicService {
         if (mapper.countTeacherCoursesById(id) > 0) {
             throw new BusinessException(409, "教师仍负责课程，请先调整课程授课教师");
         }
-        Long userId = mapper.findTeacherUserId(id);
-        mapper.deleteTeacher(id);
+        TeacherEntity teacher = teacherMapper.selectById(id);
+        if (teacher == null) {
+            throw new BusinessException(404, "教师不存在");
+        }
+        Long userId = teacher.getUserId();
+        teacherMapper.deleteById(id);
         if (userId != null) {
             userMapper.deleteById(userId);
         }
@@ -177,24 +264,41 @@ public class AcademicService {
     @Transactional
     public void createCourse(Map<String, Object> body, Authentication authentication) {
         requireAdmin(authentication);
-        body.putIfAbsent("credit", 2);
-        body.putIfAbsent("hours", 32);
-        mapper.insertCourse(body);
+        CourseEntity course = new CourseEntity();
+        course.setCourseNo(required(body, "courseNo").trim());
+        course.setName(required(body, "name").trim());
+        course.setCredit(body.get("credit") == null ? new BigDecimal("2.0") : decimalValue(body.get("credit")));
+        course.setHours(body.get("hours") == null ? 32 : Integer.valueOf(String.valueOf(body.get("hours"))));
+        course.setSemester(required(body, "semester").trim());
+        course.setTeacherId(optionalLong(body.get("teacherId")));
+        course.setDescription(stringValue(body.get("description")));
+        courseMapper.insert(course);
     }
 
     @Transactional
     public void updateCourse(long id, Map<String, Object> body, Authentication authentication) {
         requireAdmin(authentication);
-        body.put("id", id);
-        body.putIfAbsent("credit", 2);
-        body.putIfAbsent("hours", 32);
-        mapper.updateCourse(body);
+        CourseEntity course = courseMapper.selectById(id);
+        if (course == null) {
+            throw new BusinessException(404, "课程不存在");
+        }
+        if (body.containsKey("courseNo")) course.setCourseNo(required(body, "courseNo").trim());
+        if (body.containsKey("name")) course.setName(required(body, "name").trim());
+        if (body.containsKey("credit")) course.setCredit(decimalValue(body.get("credit")));
+        if (body.containsKey("hours")) course.setHours(Integer.valueOf(required(body, "hours")));
+        if (body.containsKey("semester")) course.setSemester(required(body, "semester").trim());
+        if (body.containsKey("teacherId")) course.setTeacherId(optionalLong(body.get("teacherId")));
+        if (body.containsKey("description")) course.setDescription(stringValue(body.get("description")));
+        courseMapper.updateById(course);
     }
 
     @Transactional
     public void deleteCourse(long id, Authentication authentication) {
         requireAdmin(authentication);
-        mapper.deleteCourse(id);
+        if (courseMapper.selectById(id) == null) {
+            throw new BusinessException(404, "课程不存在");
+        }
+        courseMapper.deleteById(id);
     }
 
     public List<Map<String, Object>> enrollments(Long courseId, Authentication authentication) {
@@ -339,12 +443,37 @@ public class AcademicService {
         return String.valueOf(value);
     }
 
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
     private Long requiredLong(Map<String, Object> body, String key) {
         return Long.valueOf(required(body, key));
     }
 
     private Integer requiredInt(Map<String, Object> body, String key) {
         return Integer.valueOf(required(body, key));
+    }
+
+    private Long optionalLong(Object value) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        return Long.valueOf(String.valueOf(value));
+    }
+
+    private Integer optionalInt(Object value) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        return Integer.valueOf(String.valueOf(value));
+    }
+
+    private BigDecimal decimalValue(Object value) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            throw new BusinessException(400, "成绩或学分不能为空");
+        }
+        return new BigDecimal(String.valueOf(value));
     }
 
     private BigDecimal decimal(Map<String, Object> body, String key) {

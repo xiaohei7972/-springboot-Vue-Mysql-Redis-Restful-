@@ -17,7 +17,7 @@
 | --- | --- | --- | --- | --- |
 | 1. 项目初始化 | 后端、前端、数据库目录及 Git 仓库初始化 | JDK 21、Spring Boot 3.x、Vue 3、Vite | 已完成 | 项目已接入远程 `main` 分支 |
 | 2. 数据库设计 | 用户、角色、院系、班级、学生、教师、课程、选课、成绩、考勤、通知和日志表 | MySQL 8.x、utf8mb4 | 已完成 | `database/init.sql` 可初始化结构和演示数据 |
-| 3. 持久层实现 | 数据库实体、Mapper、条件查询、分页和关联查询 | MyBatis-Plus Starter、`BaseMapper`、Wrapper、`Page/IPage`、Mapper 自定义查询 | MVC 基础分层已完成，实体化 CRUD 持续补齐 | Controller 不直接访问数据库；用户分页已使用 `BaseMapper + Page`，教学模块通过 Mapper 完成基础写入和关联查询 |
+| 3. 持久层实现 | 数据库实体、Mapper、条件查询、分页和关联查询 | MyBatis-Plus Starter、`BaseMapper`、Wrapper、`Page/IPage`、Mapper 自定义查询 | 核心实体化已完成 | 院系、班级、学生、教师和课程基础 CRUD 已使用实体与 `BaseMapper`；用户分页使用 `BaseMapper + Page`，多表列表和聚合统计保留在 Mapper 自定义 SQL |
 | 4. 认证授权 | 登录、JWT、Redis 会话、黑名单、角色权限和数据范围 | Spring Security、JWT、Redis 7.x | 用户与角色管理已完成 | 管理员、教师、学生三类账号可认证；管理员可维护用户、查看角色，教师档案自动关联登录账号 |
 | 5. 教学业务 API | 学生、院系、班级、教师、课程、选课、成绩、考勤、通知和统计 | REST `/api` 接口 + Service 业务层 | 基础业务已完成，持续扩展 | Controller 仅负责接口适配，业务权限和成绩计算由 Service 统一处理；教师已支持账号关联和新增、修改、删除 |
 | 6. 前端页面 | 登录、首页、数据列表、表单、分页、权限菜单和个人中心 | Vue 3、TypeScript、Element Plus、Pinia、Axios | 基础页面已完成，持续扩展 | 管理员已接入用户、角色、学生、教师、课程、院系、班级和通知入口；教师、学生业务页面继续完善 |
@@ -32,9 +32,9 @@
 - 表字段使用实体属性映射，数据库下划线字段统一映射为 Java 驼峰字段。
 - 简单 CRUD 使用 `BaseMapper` 和 `QueryWrapper`/`LambdaQueryWrapper`。
 - 多表关联、聚合、成绩计算和数据权限查询使用 Mapper 层自定义查询。
-- 分页查询最终统一迁移到 MyBatis-Plus `Page`/`IPage`，并转换为项目的 `PageResult`；现有首版学生查询暂保留 Mapper 分页 SQL。
+- 分页查询最终统一迁移到 MyBatis-Plus `Page`/`IPage`，并转换为项目的 `PageResult`；现有学生关联列表暂保留 Mapper 分页 SQL，后续可迁移为自定义 `IPage` 查询。
 - 新增业务表时必须同时新增 Entity、Mapper、Service 和 Controller（如该资源需要对外提供 API）。
-- 教学模块现有基础查询中的 Map 返回值、实体 Mapper 和 `Page` 分页将在下一阶段逐步补齐为明确的 DTO/VO、`BaseMapper` 和 `IPage`。
+- 教学模块复杂关联查询仍允许返回 Map 供现有页面使用；新增和修改类基础 CRUD 必须优先使用明确 Entity 与 `BaseMapper`，避免业务层直接拼接或执行 SQL。
 
 ## MVC 验收标准
 

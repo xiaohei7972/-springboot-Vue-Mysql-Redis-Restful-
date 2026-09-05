@@ -12,30 +12,12 @@ public interface StudentSystemMapper {
     @Select("SELECT id, name, code, description, created_at AS createdAt FROM sys_department ORDER BY id DESC")
     List<Map<String, Object>> listDepartments();
 
-    @Insert("INSERT INTO sys_department(name, code, description) VALUES (#{name}, #{code}, #{description})")
-    int insertDepartment(@Param("name") String name, @Param("code") String code, @Param("description") Object description);
-
-    @Update("UPDATE sys_department SET name=#{name}, code=#{code}, description=#{description} WHERE id=#{id}")
-    int updateDepartment(@Param("id") long id, @Param("name") String name, @Param("code") String code, @Param("description") Object description);
-
-    @Delete("DELETE FROM sys_department WHERE id=#{id}")
-    int deleteDepartment(@Param("id") long id);
-
     @Select("""
             SELECT c.id, c.name, c.code, c.grade_year AS gradeYear, c.department_id AS departmentId,
                    d.name AS departmentName
             FROM sys_class c JOIN sys_department d ON d.id=c.department_id ORDER BY c.id DESC
             """)
     List<Map<String, Object>> listClasses();
-
-    @Insert("INSERT INTO sys_class(name, code, department_id, grade_year) VALUES (#{name}, #{code}, #{departmentId}, #{gradeYear})")
-    int insertClass(@Param("name") String name, @Param("code") String code, @Param("departmentId") long departmentId, @Param("gradeYear") int gradeYear);
-
-    @Update("UPDATE sys_class SET name=#{name}, code=#{code}, department_id=#{departmentId}, grade_year=#{gradeYear} WHERE id=#{id}")
-    int updateClass(@Param("id") long id, @Param("name") String name, @Param("code") String code, @Param("departmentId") long departmentId, @Param("gradeYear") int gradeYear);
-
-    @Delete("DELETE FROM sys_class WHERE id=#{id}")
-    int deleteClass(@Param("id") long id);
 
     @Select("""
             <script>
@@ -70,21 +52,6 @@ public interface StudentSystemMapper {
             """)
     List<Map<String, Object>> listStudents(@Param("keyword") String keyword, @Param("size") int size, @Param("offset") int offset);
 
-    @Insert("""
-            INSERT INTO student(student_no, name, gender, phone, email, department_id, class_id, admission_year, status)
-            VALUES (#{studentNo}, #{name}, #{gender}, #{phone}, #{email}, #{departmentId}, #{classId}, #{admissionYear}, #{status})
-            """)
-    int insertStudent(Map<String, Object> body);
-
-    @Update("""
-            UPDATE student SET student_no=#{studentNo}, name=#{name}, gender=#{gender}, phone=#{phone}, email=#{email},
-            department_id=#{departmentId}, class_id=#{classId}, admission_year=#{admissionYear}, status=#{status} WHERE id=#{id}
-            """)
-    int updateStudent(Map<String, Object> body);
-
-    @Delete("DELETE FROM student WHERE id=#{id}")
-    int deleteStudent(@Param("id") long id);
-
     @Select("""
             SELECT t.id, t.user_id AS userId, t.teacher_no AS teacherNo, t.name, t.title, t.phone,
                    t.department_id AS departmentId, d.name AS departmentName,
@@ -95,21 +62,6 @@ public interface StudentSystemMapper {
             ORDER BY t.id DESC
             """)
     List<Map<String, Object>> listTeachers();
-
-    @Insert("""
-            INSERT INTO teacher(user_id, teacher_no, name, title, department_id, phone)
-            VALUES (#{userId}, #{teacherNo}, #{name}, #{title}, #{departmentId}, #{phone})
-            """)
-    int insertTeacher(Map<String, Object> body);
-
-    @Update("""
-            UPDATE teacher SET teacher_no=#{teacherNo}, name=#{name}, title=#{title},
-            department_id=#{departmentId}, phone=#{phone} WHERE id=#{id}
-            """)
-    int updateTeacher(Map<String, Object> body);
-
-    @Delete("DELETE FROM teacher WHERE id=#{id}")
-    int deleteTeacher(@Param("id") long id);
 
     @Select("SELECT user_id FROM teacher WHERE id=#{id}")
     Long findTeacherUserId(@Param("id") long id);
@@ -127,21 +79,6 @@ public interface StudentSystemMapper {
             </script>
             """)
     List<Map<String, Object>> listCourses(@Param("teacherUserId") Long teacherUserId);
-
-    @Insert("""
-            INSERT INTO course(course_no, name, credit, hours, semester, teacher_id, description)
-            VALUES (#{courseNo}, #{name}, #{credit}, #{hours}, #{semester}, #{teacherId}, #{description})
-            """)
-    int insertCourse(Map<String, Object> body);
-
-    @Update("""
-            UPDATE course SET course_no=#{courseNo}, name=#{name}, credit=#{credit}, hours=#{hours},
-            semester=#{semester}, teacher_id=#{teacherId}, description=#{description} WHERE id=#{id}
-            """)
-    int updateCourse(Map<String, Object> body);
-
-    @Delete("DELETE FROM course WHERE id=#{id}")
-    int deleteCourse(@Param("id") long id);
 
     @Select("""
             <script>
