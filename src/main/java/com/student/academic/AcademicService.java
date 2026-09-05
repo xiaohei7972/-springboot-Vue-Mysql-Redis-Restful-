@@ -257,8 +257,15 @@ public class AcademicService {
     }
 
     public List<Map<String, Object>> courses(Authentication authentication) {
-        Long teacherUserId = "TEACHER".equals(role(authentication)) ? userId(authentication) : null;
-        return mapper.listCourses(teacherUserId);
+        String currentRole = role(authentication);
+        Long teacherUserId = "TEACHER".equals(currentRole) ? userId(authentication) : null;
+        Long studentUserId = "STUDENT".equals(currentRole) ? userId(authentication) : null;
+        return mapper.listCourses(teacherUserId, studentUserId);
+    }
+
+    public List<Map<String, Object>> availableCourses(Authentication authentication) {
+        requireRole(authentication, "STUDENT");
+        return mapper.listAvailableCourses(userId(authentication));
     }
 
     @Transactional

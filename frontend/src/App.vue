@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   Avatar, Bell, Calendar, Collection, DataAnalysis, Delete, Edit, House, Lock, Monitor,
   Plus, School, Search, Setting, User, UserFilled, Notebook
@@ -27,11 +27,27 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const dialogType = ref('')
 const form = reactive<Record<string, any>>({})
+const formRef = ref<FormInstance>()
+const profileRef = ref<FormInstance>()
+const submitLoading = ref(false)
+const profileVisible = ref(false)
+const profileLoading = ref(false)
+const profileForm = reactive({ realName: '' })
+const reference = reactive({
+  departments: [] as any[],
+  classes: [] as any[],
+  teachers: [] as any[],
+  courses: [] as any[],
+  availableCourses: [] as any[],
+  students: [] as any[],
+  enrollments: [] as any[]
+})
 
 const loggedIn = computed(() => Boolean(token.value && user.value))
 const role = computed<Role>(() => user.value?.role || 'ADMIN')
 const isAdmin = computed(() => role.value === 'ADMIN')
 const isTeacher = computed(() => role.value === 'TEACHER')
+const isStudent = computed(() => role.value === 'STUDENT')
 const pageTitle = computed(() => ({
   dashboard: '工作台', users: '用户管理', roles: '角色说明', students: '学生管理', teachers: '教师管理',
   courses: '课程管理', enrollments: '选课管理', grades: '成绩管理', attendance: '考勤管理',
@@ -46,6 +62,9 @@ const menus = computed(() => {
     { key: 'students', label: '学生管理', icon: Avatar },
     { key: 'teachers', label: '教师管理', icon: UserFilled },
     { key: 'courses', label: '课程管理', icon: Notebook },
+    { key: 'enrollments', label: '选课管理', icon: Collection },
+    { key: 'grades', label: '成绩管理', icon: DataAnalysis },
+    { key: 'attendance', label: '考勤管理', icon: Calendar },
     { key: 'departments', label: '院系管理', icon: School },
     { key: 'classes', label: '班级管理', icon: Collection },
     { key: 'notices', label: '通知公告', icon: Bell }]
@@ -69,6 +88,61 @@ const columns = computed(() => {
   return map[activeMenu.value] || []
 })
 
+const rules = computed<FormRules>(() => {
+  const required = (message: string) => [{ required: true, message, trigger: 'blur' }]
+  return {
+    username: required('请输入用户名'),
+    realName: required('请输入姓名'),
+    role: [{ required: true, message: '请选择角色', trigger: 'change' }],
+    studentNo: required('请输入学号'),
+    teacherNo: required('请输入工号'),
+    name: required('请输入名称'),
+    code: required('请输入编码'),
+    departmentId: [{ required: true, message: '请选择院系', trigger: 'change' }],
+    classId: [{ required: true, message: '请选择班级', trigger: 'change' }],
+    courseNo: required('请输入课程编号'),
+    semester: required('请输入学期'),
+    courseId: [{ required: true, message: '请选择课程', trigger: 'change' }],
+    studentId: [{ required: true, message: '请选择学生', trigger: 'change' }],
+    attendanceDate: [{ required: true, message: '请选择日期', trigger: 'change' }],
+    status: [{ required: true, message: '请选择状态', trigger: 'change' }],
+    title: required('请输入标题'),
+    content: required('请输入通知内容'),
+    usualScore: [{ required: true, message: '请输入平时成绩', trigger: 'change' }],
+    midtermScore: [{ required: true, message: '请输入期中成绩', trigger: 'change' }],
+    finalScore: [{ required: true, message: '请输入期末成绩', trigger: 'change' }]
+  }
+})
+
+const attendanceStudents = computed(() => {
+  const courseId = form.courseId == null ? null : String(form.courseId)
+  return reference.enrollments
+    .filter(item => courseId == null || String(item.courseId) === courseId)
+    .reduce((items: any[], item) => {
+      if (!items.some(existing => String(existing.studentId) === String(item.studentId))) {
+        items.push(item)
+      }
+      return items
+    }, [])
+})
+
+const enrollmentCourses = computed(() => isStudent.value ? reference.availableCourses : reference.courses)
+
+const canCreate = computed(() =>
+  (isAdmin.value && ['users', 'students', 'teachers', 'courses', 'enrollments', 'attendance', 'departments', 'classes', 'notices'].includes(activeMenu.value))
+  || (isTeacher.value && activeMenu.value === 'notices')
+  || (isStudent.value && activeMenu.value === 'enrollments'))
+
+const canEditRows = computed(() =>
+  isAdmin.value && ['users', 'students', 'teachers', 'courses', 'grades', 'attendance', 'departments', 'classes'].includes(activeMenu.value)
+  || isTeacher.value && ['grades', 'attendance'].includes(activeMenu.value))
+
+const canDeleteRows = computed(() =>
+  isAdmin.value && ['users', 'students', 'teachers', 'courses', 'enrollments', 'departments', 'classes', 'notices'].includes(activeMenu.value)
+  || isStudent.value && activeMenu.value === 'enrollments')
+
+const createLabel = computed(() => activeMenu.value === 'enrollments' ? '选课' : '新增')
+
 async function login() {
   loginLoading.value = true
   try {
@@ -78,6 +152,7 @@ async function login() {
     localStorage.setItem('student_token', data.token)
     localStorage.setItem('student_user', JSON.stringify(data.user))
     await loadDashboard()
+    await loadReferences()
     ElMessage.success('登录成功')
   } catch (error: any) {
     ElMessage.error(error.message)
@@ -90,7 +165,8 @@ async function logout() {
   try { await http.post('/api/auth/logout') } catch { /* clear local state even when token expired */ }
   token.value = ''
   user.value = null
-  localStorage.clear()
+  localStorage.removeItem('student_token')
+  localStorage.removeItem('student_user')
 }
 
 async function loadDashboard() {
@@ -99,6 +175,36 @@ async function loadDashboard() {
     stats.value = data
     notices.value = data.recentNotices || []
   } catch (error: any) { ElMessage.error(error.message) }
+}
+
+async function loadReferences() {
+  if (!loggedIn.value) return
+  try {
+    const requests: Promise<any>[] = []
+    if (isAdmin.value) {
+      requests.push(
+        http.get('/api/departments'),
+        http.get('/api/classes'),
+        http.get('/api/teachers'),
+        http.get('/api/students', { params: { page: 1, size: 100 } })
+      )
+    }
+    requests.push(http.get('/api/courses'), http.get('/api/enrollments'))
+    if (isStudent.value) requests.push(http.get('/api/courses/available'))
+    const results = await Promise.all(requests)
+    let index = 0
+    if (isAdmin.value) {
+      reference.departments = results[index++] || []
+      reference.classes = results[index++] || []
+      reference.teachers = results[index++] || []
+      reference.students = results[index++]?.records || []
+    }
+    reference.courses = results[index++] || []
+    reference.enrollments = results[index++] || []
+    reference.availableCourses = isStudent.value ? (results[index++] || []) : []
+  } catch (error: any) {
+    ElMessage.error(`基础数据加载失败：${error.message}`)
+  }
 }
 
 async function loadRows() {
@@ -126,6 +232,18 @@ function openCreate() {
   Object.keys(form).forEach(key => delete form[key])
   dialogType.value = activeMenu.value
   dialogTitle.value = `新增${pageTitle.value.replace('管理', '')}`
+  if (activeMenu.value === 'enrollments') {
+    form.courseId = enrollmentCourses.value[0]?.id
+  }
+  if (activeMenu.value === 'attendance') {
+    form.courseId = reference.courses[0]?.id
+    form.studentId = attendanceStudents.value[0]?.studentId
+    form.attendanceDate = new Date().toISOString().slice(0, 10)
+    form.status = '出勤'
+  }
+  if (activeMenu.value === 'notices') {
+    form.targetRole = 'ALL'
+  }
   dialogVisible.value = true
 }
 
@@ -138,15 +256,30 @@ function openEdit(row: any) {
 }
 
 async function submitForm() {
+  if (formRef.value && !(await formRef.value.validate().catch(() => false))) return
+  submitLoading.value = true
   try {
     const endpoint = `/api/${dialogType.value}`
     const data = { ...form }
-    if (data.id) await http.put(`${endpoint}/${data.id}`, data)
-    else await http.post(endpoint, data)
+    if (dialogType.value === 'grades') {
+      await http.put(`${endpoint}/${data.enrollmentId}`, {
+        usualScore: data.usualScore,
+        midtermScore: data.midtermScore,
+        finalScore: data.finalScore
+      })
+    } else if (dialogType.value === 'attendance') {
+      await http.put(endpoint, data)
+    } else if (data.id) {
+      await http.put(`${endpoint}/${data.id}`, data)
+    } else {
+      await http.post(endpoint, data)
+    }
     ElMessage.success('保存成功')
     dialogVisible.value = false
     await loadRows()
+    await loadReferences()
   } catch (error: any) { ElMessage.error(error.message) }
+  finally { submitLoading.value = false }
 }
 
 async function removeRow(row: any) {
@@ -155,16 +288,40 @@ async function removeRow(row: any) {
     await http.delete(`/api/${activeMenu.value}/${row.id}`)
     ElMessage.success('删除成功')
     await loadRows()
+    await loadReferences()
   } catch (error: any) {
     if (error !== 'cancel') ElMessage.error(error.message)
   }
+}
+
+function openProfile() {
+  profileForm.realName = user.value?.realName || ''
+  profileVisible.value = true
+}
+
+async function saveProfile() {
+  if (profileRef.value && !(await profileRef.value.validate().catch(() => false))) return
+  profileLoading.value = true
+  try {
+    await http.put('/api/auth/profile', profileForm)
+    user.value = { ...user.value, realName: profileForm.realName.trim() }
+    localStorage.setItem('student_user', JSON.stringify(user.value))
+    profileVisible.value = false
+    ElMessage.success('个人资料已更新')
+  } catch (error: any) { ElMessage.error(error.message) }
+  finally { profileLoading.value = false }
 }
 
 function formatRole(value: string) {
   return ({ ADMIN: '管理员', TEACHER: '教师', STUDENT: '学生', ALL: '全部用户' } as any)[value] || value
 }
 
-onMounted(() => { if (loggedIn.value) loadDashboard() })
+onMounted(() => {
+  if (loggedIn.value) {
+    loadDashboard()
+    loadReferences()
+  }
+})
 </script>
 
 <template>
@@ -200,9 +357,9 @@ onMounted(() => { if (loggedIn.value) loadDashboard() })
     <el-container>
       <el-header class="topbar">
         <div><div class="crumb">学生管理系统 / {{ pageTitle }}</div><h2>{{ pageTitle }}</h2></div>
-        <div class="top-actions"><el-button text circle :icon="Bell" /><el-divider direction="vertical" /><el-dropdown>
+        <div class="top-actions"><el-button text circle :icon="Bell" @click="selectMenu('notices')" /><el-divider direction="vertical" /><el-dropdown>
           <span class="user-trigger"><el-avatar :size="34"><UserFilled /></el-avatar><span>{{ user.realName }}</span><span class="role-pill">{{ formatRole(user.role) }}</span></span>
-          <template #dropdown><el-dropdown-menu><el-dropdown-item :icon="Setting">个人设置</el-dropdown-item><el-dropdown-item divided @click="logout">退出登录</el-dropdown-item></el-dropdown-menu></template>
+          <template #dropdown><el-dropdown-menu><el-dropdown-item :icon="Setting" @click="openProfile">个人设置</el-dropdown-item><el-dropdown-item divided @click="logout">退出登录</el-dropdown-item></el-dropdown-menu></template>
         </el-dropdown></div>
       </el-header>
       <el-main class="main">
@@ -218,24 +375,93 @@ onMounted(() => { if (loggedIn.value) loadDashboard() })
           <el-card shadow="never" class="panel quick-panel"><template #header><div class="panel-title">快捷入口</div></template><div class="quick-grid"><button v-for="item in menus.slice(1, 5)" :key="item.key" @click="selectMenu(item.key as MenuKey)"><component :is="item.icon" /><span>{{ item.label }}</span></button></div></el-card></div>
         </template>
         <template v-else>
-          <div class="toolbar"><div class="search-box" v-if="['students', 'users'].includes(activeMenu)"><el-input v-model="keyword" :placeholder="activeMenu === 'users' ? '搜索用户名或姓名' : '搜索学号、姓名或手机号'" clearable @keyup.enter="loadRows"><template #prefix><Search /></template></el-input><el-button type="primary" :icon="Search" @click="loadRows">查询</el-button></div><span v-else class="record-count">共 {{ rows.length }} 条记录</span><div class="toolbar-actions"><el-button v-if="['users','students','teachers','courses','departments','classes','notices'].includes(activeMenu) && (isAdmin || (isTeacher && activeMenu === 'notices'))" type="primary" :icon="Plus" @click="openCreate">新增</el-button><el-button :icon="DataAnalysis" @click="loadRows">刷新</el-button></div></div>
-          <el-card shadow="never" class="table-panel"><el-table v-loading="loading" :data="rows" stripe height="calc(100vh - 285px)"><el-table-column v-for="column in columns" :key="column.prop" :prop="column.prop" :label="column.label" min-width="120"><template #default="{ row }"><el-tag v-if="column.prop === 'status' || column.prop === 'gradeStatus' || column.prop === 'userStatus'" :type="row[column.prop] === '合格' || row[column.prop] === '出勤' || row[column.prop] === '在读' || row[column.prop] === '1' ? 'success' : 'warning'" effect="light">{{ column.prop === 'status' && (row[column.prop] === '1' || row[column.prop] === '0') ? (row[column.prop] === '1' ? '启用' : '禁用') : row[column.prop] }}</el-tag><span v-else-if="column.prop === 'targetRole' || column.prop === 'role'">{{ formatRole(row[column.prop]) }}</span><span v-else>{{ row[column.prop] ?? '-' }}</span></template></el-table-column><el-table-column v-if="isAdmin && ['users','students','teachers','courses','departments','classes','notices'].includes(activeMenu)" fixed="right" label="操作" width="150"><template #default="{ row }"><el-button link type="primary" :icon="Edit" @click="openEdit(row)">编辑</el-button><el-button link type="danger" :icon="Delete" @click="removeRow(row)">删除</el-button></template></el-table-column><el-table-column v-if="isTeacher && activeMenu === 'grades'" fixed="right" label="操作" width="100"><template #default="{ row }"><el-button link type="primary" :icon="Edit" @click="openEdit(row)">录入</el-button></template></el-table-column></el-table><div v-if="['students','users'].includes(activeMenu)" class="pagination"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" layout="total, sizes, prev, pager, next" :total="total" @change="loadRows" /></div></el-card>
+          <div class="toolbar"><div class="search-box" v-if="['students', 'users'].includes(activeMenu)"><el-input v-model="keyword" :placeholder="activeMenu === 'users' ? '搜索用户名或姓名' : '搜索学号、姓名或手机号'" clearable @keyup.enter="loadRows"><template #prefix><Search /></template></el-input><el-button type="primary" :icon="Search" @click="loadRows">查询</el-button></div><span v-else class="record-count">共 {{ rows.length }} 条记录</span><div class="toolbar-actions"><el-button v-if="canCreate" type="primary" :icon="Plus" @click="openCreate">{{ createLabel }}</el-button><el-button :icon="DataAnalysis" @click="loadRows">刷新</el-button></div></div>
+          <el-card shadow="never" class="table-panel"><el-table v-loading="loading" :data="rows" stripe height="calc(100vh - 285px)"><el-table-column v-for="column in columns" :key="column.prop" :prop="column.prop" :label="column.label" min-width="120"><template #default="{ row }"><el-tag v-if="column.prop === 'status' || column.prop === 'gradeStatus' || column.prop === 'userStatus'" :type="row[column.prop] === '合格' || row[column.prop] === '出勤' || row[column.prop] === '在读' || row[column.prop] === '1' ? 'success' : 'warning'" effect="light">{{ column.prop === 'status' && (row[column.prop] === '1' || row[column.prop] === '0') ? (row[column.prop] === '1' ? '启用' : '禁用') : row[column.prop] }}</el-tag><span v-else-if="column.prop === 'targetRole' || column.prop === 'role'">{{ formatRole(row[column.prop]) }}</span><span v-else>{{ row[column.prop] ?? '-' }}</span></template></el-table-column><el-table-column v-if="canEditRows || canDeleteRows" fixed="right" label="操作" width="180"><template #default="{ row }"><el-button v-if="canEditRows" link type="primary" :icon="Edit" @click="openEdit(row)">{{ isTeacher && activeMenu === 'grades' ? '录入' : isTeacher && activeMenu === 'attendance' ? '登记' : '编辑' }}</el-button><el-button v-if="canDeleteRows" link type="danger" :icon="Delete" @click="removeRow(row)">{{ isStudent ? '退选' : '删除' }}</el-button></template></el-table-column></el-table><div v-if="['students','users'].includes(activeMenu)" class="pagination"><el-pagination v-model:current-page="page" v-model:page-size="pageSize" layout="total, sizes, prev, pager, next" :total="total" @change="loadRows" /></div></el-card>
         </template>
       </el-main>
     </el-container>
   </el-container>
 
-  <el-dialog v-model="dialogVisible" :title="dialogTitle" width="520px">
-    <el-form label-position="top" class="dialog-form">
-      <template v-if="dialogType === 'users'"><el-form-item label="用户名"><el-input v-model="form.username" autocomplete="off" /></el-form-item><el-form-item label="姓名"><el-input v-model="form.realName" /></el-form-item><el-form-item label="角色"><el-select v-model="form.role"><el-option label="管理员" value="ADMIN" /><el-option label="教师" value="TEACHER" /><el-option label="学生" value="STUDENT" /></el-select></el-form-item><el-form-item label="密码"><el-input v-model="form.password" type="password" show-password placeholder="新增默认 123456，编辑留空表示不修改" /></el-form-item><el-form-item label="状态"><el-select v-model="form.status"><el-option label="启用" value="1" /><el-option label="禁用" value="0" /></el-select></el-form-item></template>
-      <template v-else-if="dialogType === 'students'"><el-form-item label="学号"><el-input v-model="form.studentNo" /></el-form-item><el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item><el-form-item label="性别"><el-select v-model="form.gender"><el-option label="男" value="男" /><el-option label="女" value="女" /></el-select></el-form-item><el-form-item label="联系电话"><el-input v-model="form.phone" /></el-form-item><el-form-item label="邮箱"><el-input v-model="form.email" /></el-form-item></template>
-      <template v-else-if="dialogType === 'teachers'"><el-form-item label="登录用户名"><el-input v-model="form.username" :disabled="Boolean(form.id)" /></el-form-item><el-form-item label="初始/重置密码"><el-input v-model="form.password" type="password" show-password placeholder="新增默认 123456，编辑留空表示不修改" /></el-form-item><el-form-item label="工号"><el-input v-model="form.teacherNo" /></el-form-item><el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item><el-form-item label="职称"><el-input v-model="form.title" /></el-form-item><el-form-item label="院系ID"><el-input-number v-model="form.departmentId" :min="1" /></el-form-item><el-form-item label="联系电话"><el-input v-model="form.phone" /></el-form-item><el-form-item v-if="form.id" label="账号状态"><el-select v-model="form.userStatus"><el-option label="启用" value="1" /><el-option label="禁用" value="0" /></el-select></el-form-item></template>
-      <template v-else-if="dialogType === 'classes'"><el-form-item label="班级名称"><el-input v-model="form.name" /></el-form-item><el-form-item label="班级编码"><el-input v-model="form.code" /></el-form-item><el-form-item label="院系ID"><el-input-number v-model="form.departmentId" :min="1" /></el-form-item><el-form-item label="年级"><el-input-number v-model="form.gradeYear" :min="2000" :max="2100" /></el-form-item></template>
-      <template v-else-if="dialogType === 'departments'"><el-form-item label="院系名称"><el-input v-model="form.name" /></el-form-item><el-form-item label="院系编码"><el-input v-model="form.code" /></el-form-item><el-form-item label="简介"><el-input v-model="form.description" type="textarea" /></el-form-item></template>
-      <template v-else-if="dialogType === 'courses'"><el-form-item label="课程编号"><el-input v-model="form.courseNo" /></el-form-item><el-form-item label="课程名称"><el-input v-model="form.name" /></el-form-item><el-form-item label="学分"><el-input-number v-model="form.credit" :min="0" :max="10" /></el-form-item><el-form-item label="学时"><el-input-number v-model="form.hours" :min="1" :max="200" /></el-form-item><el-form-item label="学期"><el-input v-model="form.semester" /></el-form-item><el-form-item label="授课教师ID"><el-input-number v-model="form.teacherId" :min="1" /></el-form-item></template>
-      <template v-else-if="dialogType === 'notices'"><el-form-item label="标题"><el-input v-model="form.title" /></el-form-item><el-form-item label="内容"><el-input v-model="form.content" type="textarea" :rows="4" /></el-form-item><el-form-item label="接收范围"><el-select v-model="form.targetRole"><el-option label="全部用户" value="ALL" /><el-option label="教师" value="TEACHER" /><el-option label="学生" value="STUDENT" /></el-select></el-form-item></template>
-      <template v-else-if="dialogType === 'grades'"><el-form-item label="平时成绩"><el-input-number v-model="form.usualScore" :min="0" :max="100" /></el-form-item><el-form-item label="期中成绩"><el-input-number v-model="form.midtermScore" :min="0" :max="100" /></el-form-item><el-form-item label="期末成绩"><el-input-number v-model="form.finalScore" :min="0" :max="100" /></el-form-item></template>
+  <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px">
+    <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="dialog-form">
+      <template v-if="dialogType === 'users'">
+        <el-form-item label="用户名" prop="username"><el-input v-model="form.username" autocomplete="off" /></el-form-item>
+        <el-form-item label="姓名" prop="realName"><el-input v-model="form.realName" /></el-form-item>
+        <el-form-item label="角色" prop="role"><el-select v-model="form.role"><el-option label="管理员" value="ADMIN" /><el-option label="教师" value="TEACHER" /><el-option label="学生" value="STUDENT" /></el-select></el-form-item>
+        <el-form-item label="密码"><el-input v-model="form.password" type="password" show-password placeholder="新增默认 123456，编辑留空表示不修改" /></el-form-item>
+        <el-form-item label="状态"><el-select v-model="form.status"><el-option label="启用" value="1" /><el-option label="禁用" value="0" /></el-select></el-form-item>
+      </template>
+      <template v-else-if="dialogType === 'students'">
+        <el-form-item label="学号" prop="studentNo"><el-input v-model="form.studentNo" /></el-form-item>
+        <el-form-item label="姓名" prop="name"><el-input v-model="form.name" /></el-form-item>
+        <el-form-item label="性别"><el-select v-model="form.gender" clearable><el-option label="男" value="男" /><el-option label="女" value="女" /></el-select></el-form-item>
+        <el-form-item label="院系" prop="departmentId"><el-select v-model="form.departmentId" clearable><el-option v-for="item in reference.departments" :key="item.id" :label="`${item.name} (${item.code})`" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="班级"><el-select v-model="form.classId" clearable><el-option v-for="item in reference.classes" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="联系电话"><el-input v-model="form.phone" /></el-form-item>
+        <el-form-item label="邮箱"><el-input v-model="form.email" /></el-form-item>
+        <el-form-item label="入学年份"><el-input-number v-model="form.admissionYear" :min="2000" :max="2100" /></el-form-item>
+        <el-form-item label="状态"><el-select v-model="form.status"><el-option label="在读" value="在读" /><el-option label="毕业" value="毕业" /><el-option label="休学" value="休学" /></el-select></el-form-item>
+      </template>
+      <template v-else-if="dialogType === 'teachers'">
+        <el-form-item label="登录用户名" prop="username"><el-input v-model="form.username" :disabled="Boolean(form.id)" /></el-form-item>
+        <el-form-item label="初始/重置密码"><el-input v-model="form.password" type="password" show-password placeholder="新增默认 123456，编辑留空表示不修改" /></el-form-item>
+        <el-form-item label="工号" prop="teacherNo"><el-input v-model="form.teacherNo" /></el-form-item>
+        <el-form-item label="姓名" prop="name"><el-input v-model="form.name" /></el-form-item>
+        <el-form-item label="职称"><el-input v-model="form.title" /></el-form-item>
+        <el-form-item label="院系"><el-select v-model="form.departmentId" clearable><el-option v-for="item in reference.departments" :key="item.id" :label="`${item.name} (${item.code})`" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="联系电话"><el-input v-model="form.phone" /></el-form-item>
+        <el-form-item v-if="form.id" label="账号状态"><el-select v-model="form.userStatus"><el-option label="启用" value="1" /><el-option label="禁用" value="0" /></el-select></el-form-item>
+      </template>
+      <template v-else-if="dialogType === 'classes'">
+        <el-form-item label="班级名称" prop="name"><el-input v-model="form.name" /></el-form-item>
+        <el-form-item label="班级编码" prop="code"><el-input v-model="form.code" /></el-form-item>
+        <el-form-item label="院系" prop="departmentId"><el-select v-model="form.departmentId"><el-option v-for="item in reference.departments" :key="item.id" :label="`${item.name} (${item.code})`" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="年级"><el-input-number v-model="form.gradeYear" :min="2000" :max="2100" /></el-form-item>
+      </template>
+      <template v-else-if="dialogType === 'departments'">
+        <el-form-item label="院系名称" prop="name"><el-input v-model="form.name" /></el-form-item>
+        <el-form-item label="院系编码" prop="code"><el-input v-model="form.code" /></el-form-item>
+        <el-form-item label="简介"><el-input v-model="form.description" type="textarea" /></el-form-item>
+      </template>
+      <template v-else-if="dialogType === 'courses'">
+        <el-form-item label="课程编号" prop="courseNo"><el-input v-model="form.courseNo" /></el-form-item>
+        <el-form-item label="课程名称" prop="name"><el-input v-model="form.name" /></el-form-item>
+        <el-form-item label="学分"><el-input-number v-model="form.credit" :min="0" :max="10" :precision="1" /></el-form-item>
+        <el-form-item label="学时"><el-input-number v-model="form.hours" :min="1" :max="200" /></el-form-item>
+        <el-form-item label="学期" prop="semester"><el-input v-model="form.semester" /></el-form-item>
+        <el-form-item label="授课教师"><el-select v-model="form.teacherId" clearable><el-option v-for="item in reference.teachers" :key="item.id" :label="`${item.name} (${item.teacherNo})`" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="课程简介"><el-input v-model="form.description" type="textarea" /></el-form-item>
+      </template>
+      <template v-else-if="dialogType === 'enrollments'">
+        <el-form-item label="课程" prop="courseId"><el-select v-model="form.courseId"><el-option v-for="item in enrollmentCourses" :key="item.id" :label="`${item.courseNo} · ${item.name}`" :value="item.id" /></el-select></el-form-item>
+        <el-form-item v-if="isAdmin" label="学生" prop="studentId"><el-select v-model="form.studentId"><el-option v-for="item in reference.students" :key="item.id" :label="`${item.studentNo} · ${item.name}`" :value="item.id" /></el-select></el-form-item>
+      </template>
+      <template v-else-if="dialogType === 'attendance'">
+        <el-form-item label="课程" prop="courseId"><el-select v-model="form.courseId"><el-option v-for="item in reference.courses" :key="item.id" :label="`${item.courseNo} · ${item.name}`" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="学生" prop="studentId"><el-select v-model="form.studentId"><el-option v-for="item in attendanceStudents" :key="item.studentId" :label="`${item.studentNo} · ${item.studentName}`" :value="item.studentId" /></el-select></el-form-item>
+        <el-form-item label="日期" prop="attendanceDate"><el-date-picker v-model="form.attendanceDate" type="date" value-format="YYYY-MM-DD" /></el-form-item>
+        <el-form-item label="考勤状态" prop="status"><el-select v-model="form.status"><el-option label="出勤" value="出勤" /><el-option label="迟到" value="迟到" /><el-option label="请假" value="请假" /><el-option label="缺勤" value="缺勤" /></el-select></el-form-item>
+        <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" /></el-form-item>
+      </template>
+      <template v-else-if="dialogType === 'notices'">
+        <el-form-item label="标题" prop="title"><el-input v-model="form.title" /></el-form-item>
+        <el-form-item label="内容" prop="content"><el-input v-model="form.content" type="textarea" :rows="4" /></el-form-item>
+        <el-form-item label="接收范围"><el-select v-model="form.targetRole"><el-option label="全部用户" value="ALL" /><el-option label="教师" value="TEACHER" /><el-option label="学生" value="STUDENT" /></el-select></el-form-item>
+      </template>
+      <template v-else-if="dialogType === 'grades'">
+        <el-form-item label="平时成绩" prop="usualScore"><el-input-number v-model="form.usualScore" :min="0" :max="100" :precision="2" /></el-form-item>
+        <el-form-item label="期中成绩" prop="midtermScore"><el-input-number v-model="form.midtermScore" :min="0" :max="100" :precision="2" /></el-form-item>
+        <el-form-item label="期末成绩" prop="finalScore"><el-input-number v-model="form.finalScore" :min="0" :max="100" :precision="2" /></el-form-item>
+      </template>
     </el-form>
-    <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" @click="submitForm">保存</el-button></template>
+    <template #footer><el-button @click="dialogVisible = false">取消</el-button><el-button type="primary" :loading="submitLoading" @click="submitForm">保存</el-button></template>
+  </el-dialog>
+
+  <el-dialog v-model="profileVisible" title="个人设置" width="420px">
+    <el-form ref="profileRef" :model="profileForm" label-position="top">
+      <el-form-item label="登录账号"><el-input :model-value="user?.username" disabled /></el-form-item>
+      <el-form-item label="姓名" prop="realName" :rules="[{ required: true, message: '请输入姓名', trigger: 'blur' }]"><el-input v-model="profileForm.realName" /></el-form-item>
+    </el-form>
+    <template #footer><el-button @click="profileVisible = false">取消</el-button><el-button type="primary" :loading="profileLoading" @click="saveProfile">保存</el-button></template>
   </el-dialog>
 </template>

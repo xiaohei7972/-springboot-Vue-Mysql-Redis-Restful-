@@ -74,11 +74,27 @@ public interface StudentSystemMapper {
             SELECT c.id, c.course_no AS courseNo, c.name, c.credit, c.hours, c.semester,
                    c.teacher_id AS teacherId, t.name AS teacherName, c.description
             FROM course c LEFT JOIN teacher t ON t.id=c.teacher_id
-            <if test="teacherUserId != null">WHERE t.user_id=#{teacherUserId}</if>
+            <where>
+              <if test="teacherUserId != null">t.user_id=#{teacherUserId}</if>
+              <if test="studentUserId != null">c.id IN (SELECT e.course_id FROM enrollment e JOIN student s ON s.id=e.student_id WHERE s.user_id=#{studentUserId})</if>
+            </where>
             ORDER BY c.id DESC
             </script>
             """)
-    List<Map<String, Object>> listCourses(@Param("teacherUserId") Long teacherUserId);
+    List<Map<String, Object>> listCourses(@Param("teacherUserId") Long teacherUserId,
+                                          @Param("studentUserId") Long studentUserId);
+
+    @Select("""
+            SELECT c.id, c.course_no AS courseNo, c.name, c.credit, c.hours, c.semester,
+                   c.teacher_id AS teacherId, t.name AS teacherName, c.description
+            FROM course c LEFT JOIN teacher t ON t.id=c.teacher_id
+            WHERE NOT EXISTS (
+                SELECT 1 FROM enrollment e JOIN student s ON s.id=e.student_id
+                WHERE e.course_id=c.id AND s.user_id=#{studentUserId}
+            )
+            ORDER BY c.id DESC
+            """)
+    List<Map<String, Object>> listAvailableCourses(@Param("studentUserId") long studentUserId);
 
     @Select("""
             <script>

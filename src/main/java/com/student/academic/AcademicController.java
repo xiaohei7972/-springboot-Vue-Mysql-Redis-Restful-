@@ -131,6 +131,11 @@ public class AcademicController {
         return ApiResponse.ok(academicService.courses(authentication));
     }
 
+    @GetMapping("/courses/available")
+    public ApiResponse<?> availableCourses(Authentication authentication) {
+        return ApiResponse.ok(academicService.availableCourses(authentication));
+    }
+
     @PostMapping("/courses")
     public ApiResponse<Void> createCourse(@RequestBody Map<String, Object> body,
                                           Authentication authentication) {
