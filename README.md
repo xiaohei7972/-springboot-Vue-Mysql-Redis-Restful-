@@ -15,7 +15,7 @@
 
 ## 环境
 
-- JDK 21，推荐 `JAVA_HOME=D:/Environment/Java/jdk-21.0.10`
+- JDK 21，建议将系统变量 `JDK21` 指向 JDK 21 安装目录，并设置 `JAVA_HOME=%JDK21%`
 - Maven 3.9+
 - Node.js 20+
 - MySQL 8.x
@@ -54,9 +54,14 @@ docker run --name student-redis -p 6379:6379 -d redis:7-alpine
 ## 启动后端
 
 ```bash
-set JAVA_HOME=D:\Environment\Java\jdk-21.0.10
+set JAVA_HOME=%JDK21%
+set PATH=%JAVA_HOME%\bin;%PATH%
+java -version
 mvn spring-boot:run
 ```
+
+如果 `java -version` 仍显示 JDK 8，请关闭当前终端后重新打开，或将
+`%JAVA_HOME%\bin` 移到系统 `Path` 中旧 JDK 路径之前。
 
 后端地址：`http://localhost:8080`
 
@@ -110,4 +115,6 @@ npm run dev
 
 ## 项目文档
 
-实施进度、MVC 分层和 MyBatis-Plus 技术约束见 `docs/IMPLEMENTATION_PLAN.md`。课程论文需按照任务书要求补充需求分析、系统设计、实现截图、测试结果、结论、致谢和参考文献。
+实施进度、MVC 分层和 MyBatis-Plus 技术约束见 `docs/IMPLEMENTATION_PLAN.md`。
+REST 接口、认证方式和请求示例见 `docs/API.md`。架构图、数据库关系图、论文目录和答辩流程见
+`docs/COURSE_DELIVERABLES.md`。测试命令和当前执行状态见 `docs/TEST_PLAN.md`。
