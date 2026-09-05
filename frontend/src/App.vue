@@ -2,8 +2,8 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Bell, Calendar, Collection, DataAnalysis, Delete, Edit, House, Lock, Monitor,
-  Plus, School, Search, Setting, User, UserFilled, UserGroup, Notebook
+  Avatar, Bell, Calendar, Collection, DataAnalysis, Delete, Edit, House, Lock, Monitor,
+  Plus, School, Search, Setting, User, UserFilled, Notebook
 } from '@element-plus/icons-vue'
 import http from './api'
 
@@ -39,8 +39,8 @@ const pageTitle = computed(() => ({
 
 const menus = computed(() => {
   const base = [{ key: 'dashboard', label: '工作台', icon: House }]
-  if (isAdmin.value) return [...base, { key: 'students', label: '学生管理', icon: UserGroup }, { key: 'courses', label: '课程管理', icon: Notebook }, { key: 'departments', label: '组织管理', icon: School }, { key: 'notices', label: '通知公告', icon: Bell }]
-  if (isTeacher.value) return [...base, { key: 'courses', label: '我的课程', icon: Notebook }, { key: 'enrollments', label: '选课名单', icon: UserGroup }, { key: 'grades', label: '成绩录入', icon: DataAnalysis }, { key: 'attendance', label: '考勤管理', icon: Calendar }, { key: 'notices', label: '通知公告', icon: Bell }]
+  if (isAdmin.value) return [...base, { key: 'students', label: '学生管理', icon: Avatar }, { key: 'courses', label: '课程管理', icon: Notebook }, { key: 'departments', label: '组织管理', icon: School }, { key: 'notices', label: '通知公告', icon: Bell }]
+  if (isTeacher.value) return [...base, { key: 'courses', label: '我的课程', icon: Notebook }, { key: 'enrollments', label: '选课名单', icon: Avatar }, { key: 'grades', label: '成绩录入', icon: DataAnalysis }, { key: 'attendance', label: '考勤管理', icon: Calendar }, { key: 'notices', label: '通知公告', icon: Bell }]
   return [...base, { key: 'courses', label: '我的课程', icon: Notebook }, { key: 'enrollments', label: '我的选课', icon: Collection }, { key: 'grades', label: '我的成绩', icon: DataAnalysis }, { key: 'attendance', label: '我的考勤', icon: Calendar }, { key: 'notices', label: '通知公告', icon: Bell }]
 })
 
@@ -197,7 +197,7 @@ onMounted(() => { if (loggedIn.value) loadDashboard() })
         <template v-if="activeMenu === 'dashboard'">
           <div class="welcome-row"><div><h3>你好，{{ user.realName }}</h3><p>今天也要高效完成教学管理工作。</p></div><el-button type="primary" :icon="Monitor" @click="selectMenu(isAdmin ? 'students' : 'courses')">进入管理</el-button></div>
           <div class="stat-grid">
-            <div class="stat-card accent-blue"><span>学生总数</span><strong>{{ stats.studentCount ?? 0 }}</strong><div><UserGroup /> 当前在读学生</div></div>
+            <div class="stat-card accent-blue"><span>学生总数</span><strong>{{ stats.studentCount ?? 0 }}</strong><div><Avatar /> 当前在读学生</div></div>
             <div class="stat-card accent-green"><span>{{ isAdmin ? '教师总数' : isTeacher ? '授课课程' : '我的课程' }}</span><strong>{{ isAdmin ? stats.teacherCount : stats.courseCount ?? 0 }}</strong><div><Notebook /> 教学资源概览</div></div>
             <div class="stat-card accent-orange"><span>{{ isAdmin ? '课程总数' : isTeacher ? '选课学生' : '已录成绩' }}</span><strong>{{ isAdmin ? stats.courseCount : isTeacher ? stats.studentCount : stats.gradeCount ?? 0 }}</strong><div><DataAnalysis /> 数据实时更新</div></div>
             <div class="stat-card accent-purple"><span>{{ isAdmin ? '院系数量' : isTeacher ? '考勤记录' : '通知公告' }}</span><strong>{{ isAdmin ? stats.departmentCount : isTeacher ? stats.attendanceCount : stats.noticeCount ?? 0 }}</strong><div><Bell /> 最近业务动态</div></div>
