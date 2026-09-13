@@ -25,6 +25,16 @@ cd frontend
 npm run build
 ```
 
+Windows 启动脚本检查：
+
+```powershell
+cmd /c scripts\set-java21.bat
+cmd /c scripts\start-backend.bat
+cmd /c scripts\start-frontend.bat
+```
+
+实际启动时建议双击 `scripts\start-all.bat`，或分别运行后端和前端脚本。
+
 REST 冒烟测试：
 
 ```powershell

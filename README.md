@@ -67,6 +67,22 @@ mvn spring-boot:run
 
 OpenAPI JSON：`http://localhost:8080/v3/api-docs`
 
+也可以直接双击以下脚本：
+
+```text
+scripts\set-java21.bat       设置当前窗口和后续用户会话的 JAVA_HOME
+scripts\start-backend.bat    设置 JDK 21 并启动 Spring Boot 后端
+scripts\start-frontend.bat   启动 Vue 前端
+scripts\start-all.bat        分别打开后端和前端命令窗口
+```
+
+首次启动前端时，如果没有 `frontend\node_modules`，先在项目根目录执行：
+
+```bash
+cd frontend
+npm install
+```
+
 核心管理接口：
 
 ```text
